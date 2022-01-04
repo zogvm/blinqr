@@ -5,7 +5,7 @@ block_cipher = None
 
 a = Analysis(['receiver.py'],
              pathex=['C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python36\\Lib\\site-packages', 'D:\\blinqr-master'],
-             binaries=[('C:\\Users\\Administrator\\AppData\\Local\Programs\\Python\\Python36\\Lib\\site-packages\\pyzbar\\libiconv.dll','.'),('C:\\Users\\Administrator\\AppData\\Local\Programs\\Python\\Python36\\Lib\\site-packages\\pyzbar\\libzbar-64.dll','.')],  
+             binaries=[('C:\\Users\\Administrator\\AppData\\Local\Programs\\Python\\Python36\\Lib\\site-packages\\pyzbar\\libiconv.dll','.'),('C:\\Users\\Administrator\\AppData\\Local\Programs\\Python\\Python36\\Lib\\site-packages\\pyzbar\\libzbar-64.dll','.'),('C:\\Users\\Administrator\\AppData\\Local\Programs\\Python\\Python36\\Lib\\site-packages\\cv2\\opencv_ffmpeg345_64.dll','.')],
              datas=[],
              hiddenimports=[],
              hookspath=[],
