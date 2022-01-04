@@ -1,0 +1,2 @@
+pyinstaller receiver.spec
+pause
