@@ -66,12 +66,15 @@ def send(data: bytes, *, block_size: int = 2350):
         cv2.destroyAllWindows()
 
 
-def receive():
+def receive(path):
     qrDecoder = cv2.QRCodeDetector()
     ltDecoder = decode.LtDecoder()
     empty = True
-
-    cap = cv2.VideoCapture(0)
+	
+    if not path:
+        cap = cv2.VideoCapture(0)
+    else:
+        cap = cv2.VideoCapture(path)
     try:
         while True:
             _, img = cap.read()
@@ -104,6 +107,10 @@ def receive():
                         print(colored(f'{len(data)} bytes, SHA-1: {sha1}', 'green'))
                         print(colored(f'{time_elapsed:.2f} seconds, {transfer_speed:.2f} B/s', 'green'))
                         time.sleep(3)
+                        
+                        with open(path+".out", 'wb') as fw:
+                        	data = fw.write(data)
+                        exit(0)
 
                         ltDecoder = decode.LtDecoder()
                         empty = True
