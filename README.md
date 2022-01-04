@@ -9,7 +9,7 @@ A prototype implementation of an unidirectional connectionless stateless data tr
 This is a Python version of [Animated QR data transfer with Gomobile and Gopherjs](https://divan.dev/posts/animatedqr/) realised as an assignment for my studies.
 
 ## Prerequisites
-* Python 3.7
+* Python 3.7           3.6 也可以
 * Tkinter
 * zbar 0.10 (http://zbar.sourceforge.net/download.html)
 * DroidCam 6.0 (https://www.dev47apps.com/)
