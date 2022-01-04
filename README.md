@@ -1,3 +1,5 @@
+二维码 内外网传输
+
 # blinqr
 A prototype implementation of an unidirectional connectionless stateless data transfer protocol using QR and LT codes to send small files from a computer to a mobile device.
 
