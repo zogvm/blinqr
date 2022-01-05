@@ -49,7 +49,11 @@ def send(data: bytes, *, block_size: int = 2350):
 
     cv2.namedWindow('sender', cv2.WINDOW_NORMAL)
     cv2.resizeWindow('sender', 960, 960)
-
+    
+    start_time = time.time()
+    i=0     
+    
+    #5FPS
     try:
         for block in encode.encoder(stream, block_size):  # max size is 2350
             block_encoded = b85encode(block)
@@ -58,7 +62,10 @@ def send(data: bytes, *, block_size: int = 2350):
             img = ~np.array(qr.matrix, dtype=np.bool)
             img = np.uint8(img) * 0xFF
             img = np.pad(img, pad_width=6, mode='constant', constant_values=0xFF)
-
+            
+            i+=1
+            print("time:{:.2f},{:d}".format(time.time()-start_time,i))
+            
             cv2.imshow('sender', img)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
