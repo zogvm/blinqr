@@ -164,7 +164,7 @@ def receive(path):
                 decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
             
             #锐化
-            if True:
+            if False:
                 if not decoded_qrs:
                     img_src=img
                     k= np.array([[0,-1,0],[-1,5,-1],[0,-1,0]])
@@ -172,11 +172,11 @@ def receive(path):
                     decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
                 
             #gamma校准
-            if True:
+            if False:
                 img_src=img	
                 thre = 1.1
-                while (len(decoded_qrs) == 0 and thre < 1.9):
-                    img = 255*np.power(img_src/255,1.5)
+                while (len(decoded_qrs) == 0 and thre < 1.8):
+                    img = 255*np.power(img_src/255,thre)
                     img = np.around(img)
                     img[img>255] = 255
                     img = img.astype(np.uint8)
@@ -195,13 +195,12 @@ def receive(path):
                     img = cv2.copyMakeBorder(img,new_h,new_h,new_w,new_w, cv2.BORDER_CONSTANT,value=0xFF)
                     decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
             
-
                 
-            #二值化
+            #二值化 只开这个效果好
             if True:
                 img_src=img
                 thre = 70
-                while (len(decoded_qrs) == 0 and thre < 180):
+                while (len(decoded_qrs) == 0 and thre < 170):
                     ret2, img = cv2.threshold(img_src, thre, 255, cv2.THRESH_BINARY)
                     decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
                     thre = thre + 10
