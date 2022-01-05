@@ -66,7 +66,7 @@ def set_img(index,q_block,q_img):
             #2350 l  max size is 2350
             #1024 m
             #512  h
-            qr = make_qr(block_encoded, error='l') #176*176
+            qr = make_qr(block_encoded, error='l') #177*177
             img = ~np.array(qr.matrix, dtype=np.bool)
             img = np.uint8(img) * 0xFF
             img = np.pad(img, pad_width=20,mode='constant', constant_values=0xFF)
@@ -134,6 +134,7 @@ def receive(path):
     ltDecoder = decode.LtDecoder()
     empty = True
     i=0
+    j=0
     if not path:
         cap = cv2.VideoCapture(0)
     else:
@@ -162,6 +163,26 @@ def receive(path):
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                 decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
             
+            #锐化
+            if True:
+                if not decoded_qrs:
+                    img_src=img
+                    k= np.array([[0,-1,0],[-1,5,-1],[0,-1,0]])
+                    img=cv2.filter2D(img_src,-1,k)
+                    decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
+                
+            #gamma校准
+            if True:
+                img_src=img	
+                thre = 1.1
+                while (len(decoded_qrs) == 0 and thre < 1.9):
+                    img = 255*np.power(img_src/255,1.5)
+                    img = np.around(img)
+                    img[img>255] = 255
+                    img = img.astype(np.uint8)
+                    decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
+                    thre=thre+0.1
+                img=img_src
                 
             
             #缩小后边缘扩大
@@ -174,16 +195,19 @@ def receive(path):
                     img = cv2.copyMakeBorder(img,new_h,new_h,new_w,new_w, cv2.BORDER_CONSTANT,value=0xFF)
                     decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
             
+
+                
             #二值化
             if True:
-                thre = 35
-                while (len(decoded_qrs) == 0 and thre < 200):
-                    ret2, thresh = cv2.threshold(img, thre, 255, cv2.THRESH_BINARY)
-                    decoded_qrs = pyzbar.decode(thresh, symbols=(pyzbar.ZBarSymbol.QRCODE,))
-                    thre = thre + 20
-
+                img_src=img
+                thre = 70
+                while (len(decoded_qrs) == 0 and thre < 180):
+                    ret2, img = cv2.threshold(img_src, thre, 255, cv2.THRESH_BINARY)
+                    decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
+                    thre = thre + 10
+                img=img_src
+                
             if decoded_qrs:
-                j=0
                 step_qrs_time = time.time()
                 for decoded_qr in decoded_qrs:
                     polygon = tuple(decoded_qr.polygon)
