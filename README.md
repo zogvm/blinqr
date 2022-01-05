@@ -4,6 +4,7 @@ QRCODE 瀑布流传输
 二维码基础知识
 https://tuz.im/blog/233.html
 
+https://segno.readthedocs.io/en/stable/index.html
 
 # blinqr
 A prototype implementation of an unidirectional connectionless stateless data transfer protocol using QR and LT codes to send small files from a computer to a mobile device.
