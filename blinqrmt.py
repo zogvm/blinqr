@@ -55,9 +55,7 @@ def set_block(stream,block_size,q_block):
             print("block time:{:.2f},{:d}".format(end_time-start_time,i))
             start_time = time.time()
  
-img_i=0     
 def set_img(index,q_block,q_img):
-    global img_i
     while True:
         if q_block.qsize()>0:	
             if isDebug:	
@@ -65,16 +63,18 @@ def set_img(index,q_block,q_img):
             #make_qr最耗 差不多0.2S
             block=q_block.get()
             block_encoded = b85encode(block)
-            qr = make_qr(block_encoded, error='l')
+            #2350 l  max size is 2350
+            #1024 m
+            #512  h
+            qr = make_qr(block_encoded, error='l') #176*176
             img = ~np.array(qr.matrix, dtype=np.bool)
             img = np.uint8(img) * 0xFF
-            img = np.pad(img, pad_width=6, mode='constant', constant_values=0xFF)
+            img = np.pad(img, pad_width=20,mode='constant', constant_values=0xFF)
             q_img.put(img,True)
         
             if isDebug:
                 end_time = time.time()
-                img_i=img_i+1
-                print("index={:d},img time:{:.2f},{:d}".format(index,end_time-start_time,img_i))
+                print("index={:d},img time:{:.2f}".format(index,end_time-start_time))
            
         else:
             time.sleep(0.01)	
@@ -82,14 +82,25 @@ def set_img(index,q_block,q_img):
 
 
 def send(data: bytes, *, block_size: int = 2350):
-    assert block_size <= 2350
+    #assert block_size <= 2350
 
     sha1 = calculate_sha1(data)
     stream = BytesIO(data)
     print(colored(f'多进程模式{len(data)} bytes, SHA-1: {sha1}', 'blue'))
-
+    
+    root = Tk()
+    screen_h= root.winfo_screenheight()
+    screen_w= root.winfo_screenwidth()
+    print("w:{:f},h:{:f}".format(screen_w,screen_h))
+    
+    if screen_h> screen_w:
+        win_s=screen_w	
+    else:
+        win_s=screen_h	
+    win_s=win_s-80
+     
     cv2.namedWindow('sender', cv2.WINDOW_NORMAL)
-    cv2.resizeWindow('sender', 960, 960)
+    cv2.resizeWindow('sender',win_s,win_s)
     
     start_time = time.time()
     i=0     
@@ -98,7 +109,8 @@ def send(data: bytes, *, block_size: int = 2350):
     t1 = multiprocessing.Process(target=set_block,args=[stream,block_size,q_block])
     t1.start()
     #设为5差不多为15FPS
-    for x in range(5):
+    #不要太快 会糊
+    for x in range(3):
         t2 = multiprocessing.Process(target=set_img,args=[x,q_block,q_img])
         t2.start()
     
@@ -110,8 +122,8 @@ def send(data: bytes, *, block_size: int = 2350):
             cv2.imshow('sender', img)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                break
-        else:
-            time.sleep(0.05)	
+        #限成10FPS
+        time.sleep(0.1)	
            
     cv2.destroyAllWindows()   
     
@@ -121,21 +133,58 @@ def receive(path):
     qrDecoder = cv2.QRCodeDetector()
     ltDecoder = decode.LtDecoder()
     empty = True
-	
+    i=0
     if not path:
         cap = cv2.VideoCapture(0)
     else:
         cap = cv2.VideoCapture(path)
+        
+    w=cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    h=cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    print("w:{:f},h:{:f}".format(w,h))
+    
     try:
         while True:
-            _, img = cap.read()
-
+            ret, img = cap.read()
+            if not ret:
+                break
+                
+            #time.sleep(1)    
+            
+            start_f_time = time.time()
             if empty:
                 start_time = time.time()
-
+            
             decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
+           
+            #灰色    
+            if not decoded_qrs:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
+            
+                
+            
+            #缩小后边缘扩大
+            if False:
+                rate=0.9
+                if not decoded_qrs:
+                    img=cv2.resize(img,None,fx=rate,fy=rate,interpolation=cv2.INTER_LINEAR)	 
+                    new_w=int(w-w*rate)
+                    new_h=int(h-h*rate)
+                    img = cv2.copyMakeBorder(img,new_h,new_h,new_w,new_w, cv2.BORDER_CONSTANT,value=0xFF)
+                    decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
+            
+            #二值化
+            if True:
+                thre = 35
+                while (len(decoded_qrs) == 0 and thre < 200):
+                    ret2, thresh = cv2.threshold(img, thre, 255, cv2.THRESH_BINARY)
+                    decoded_qrs = pyzbar.decode(thresh, symbols=(pyzbar.ZBarSymbol.QRCODE,))
+                    thre = thre + 20
 
             if decoded_qrs:
+                j=0
+                step_qrs_time = time.time()
                 for decoded_qr in decoded_qrs:
                     polygon = tuple(decoded_qr.polygon)
                     for p1, p2 in zip(polygon, (*polygon[1:], polygon[0])):
@@ -147,7 +196,7 @@ def receive(path):
                     block = decode.block_from_bytes(data_decoded)
                     ltDecoder.consume_block(block)
                     empty = False
-
+                    
                     if ltDecoder.is_done():
                         data = ltDecoder.bytes_dump()
                         end_time = time.time()
@@ -155,21 +204,23 @@ def receive(path):
                         time_elapsed = end_time - start_time
                         transfer_speed = len(data) / time_elapsed
 
-                        print(colored(f'{len(data)} bytes, SHA-1: {sha1}', 'green'))
-                        print(colored(f'{time_elapsed:.2f} seconds, {transfer_speed:.2f} B/s', 'green'))
+                        print(colored(f'done:{len(data)} bytes, SHA-1: {sha1}', 'green'))
+                        print(colored(f'done:{time_elapsed:.2f} seconds, {transfer_speed:.2f} B/s', 'green'))
                         time.sleep(3)
                         
                         with open(path+".out", 'wb') as fw:
-                        	data = fw.write(data)
+                            data = fw.write(data)
                         exit(0)
 
                         ltDecoder = decode.LtDecoder()
                         empty = True
 
                     else:
-                        print(time.time())
+                        j+=1
+                        print("qrs time:{:.2f},{:d}".format(time.time()-step_qrs_time,j))
             else:
-                print(colored(str(time.time()), attrs=('dark',)))
+                i+=1
+                print("f time:{:.2f},{:d}".format(time.time()-start_f_time,i))
 
             cv2.imshow('receiver', img)
             if cv2.waitKey(1) & 0xFF == ord('q'):
