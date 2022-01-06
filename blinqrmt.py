@@ -13,9 +13,11 @@ from termcolor import colored
 from lt import encode, decode
 from base64 import b85encode, b85decode
 from tkinter.filedialog import askopenfilename
-
+import queue
 import multiprocessing 
+import math
 
+useRGB=True
 isDebug=False
 
 def fix_scaling():
@@ -63,34 +65,102 @@ def set_block(stream,block_size,q_block):
             start_time = time.time()
         
     isEnd=True
+
+#块转二维码 白底黑值
+def block2img(block):
+    block_encoded = b85encode(block)
+    #b85encode       
+    #2350 l  
+    #1024 m
+    #512  h
+    #make_qr最耗 差不多0.2S
+    qr = make_qr(block_encoded, error='l') #177*177
+    img = ~np.array(qr.matrix, dtype=np.bool)
+    img = np.uint8(img) * 0xFF
+    img = np.pad(img, pad_width=20,mode='constant', constant_values=0xFF)
+    return img
+
+#块转二维码 不反色 黑底白值
+def block2img_rgb(block):
+    block_encoded = b85encode(block)
+    #b85encode       
+    #2350 l  
+    #1024 m
+    #512  h
+    #make_qr最耗 差不多0.2S
+    qr = make_qr(block_encoded, error='l') #177*177
+    img = np.array(qr.matrix, dtype=np.bool)
+    img = np.uint8(img) * 0xFF
+    img = np.pad(img, pad_width=20,mode='constant', constant_values=0x00)
+    return img
+    
 #块转二维码
 def set_img(index,q_block,q_img):
     global isEnd   
-    while True:
-        if q_block.qsize()>0:	
-            if isDebug:	
-                start_time = time.time()	
-            #make_qr最耗 差不多0.2S
-            block=q_block.get()
-            block_encoded = b85encode(block)
-            #b85encode       
-            #2350 l  
-            #1024 m
-            #512  h
-            qr = make_qr(block_encoded, error='l') #177*177
-            img = ~np.array(qr.matrix, dtype=np.bool)
-            img = np.uint8(img) * 0xFF
-            img = np.pad(img, pad_width=20,mode='constant', constant_values=0xFF)
-            q_img.put(img,True)
-        
-            if isDebug:
-                end_time = time.time()
-                print("index={:d},img time:{:.2f}".format(index,end_time-start_time))
-           
-        else:
-            time.sleep(0.001)	
-            if isEnd:
-                break
+    
+    #用RGB分色
+    if useRGB:
+        i=0
+        img_i = queue.Queue(30)
+        while True:
+            if q_block.qsize()>0:	
+                if isDebug:	
+                    start_time = time.time()
+                block=q_block.get()
+                img_i.put(block2img_rgb(block))
+                i+=1
+                #集齐3通道
+                if i==3:
+                    r=img_i.get()
+                    g=img_i.get()
+                    b=img_i.get()
+                    # #如果 R G都有 则白
+                    # #否则 就没有
+                    # a = r.astype(np.float)
+                    # c= g.astype(np.float)
+                    # b=a+c
+                    # b = b/400.0
+                    # b = b.astype(np.int)
+                    # b= b*254.0
+                    # # ii=0
+                    # # for item in b:
+                    # #     ii+=1
+                    # #     if ii==119:
+                    # #         print(item)
+                    # #         break
+                    # b = b.astype(np.uint8)
+                    #b=np.zeros(g.shape, np.uint8)
+                    #https://blog.csdn.net/fripy/article/details/86658002
+                    img = np.dstack((r,g,b))
+                    q_img.put(img,True)
+                    i=0
+            
+                if isDebug:
+                    end_time = time.time()
+                    print("index={:d},img time:{:.2f}".format(index,end_time-start_time))
+            
+            else:
+                time.sleep(0.001)	
+                if isEnd:
+                    break
+    else:
+        #单色
+        while True:
+            if q_block.qsize()>0:	
+                if isDebug:	
+                    start_time = time.time()	
+                block=q_block.get()
+                img=block2img(block)
+                q_img.put(img,True)
+            
+                if isDebug:
+                    end_time = time.time()
+                    print("index={:d},img time:{:.2f}".format(index,end_time-start_time))
+            
+            else:
+                time.sleep(0.001)	
+                if isEnd:
+                    break
 #发送端
 def send(data: bytes, *, block_size: int = 2350):
     assert block_size <= 2350
@@ -98,7 +168,7 @@ def send(data: bytes, *, block_size: int = 2350):
     global isEnd  
     sha1 = calculate_sha1(data)
     stream = BytesIO(data)
-    print(colored(f'多进程模式{len(data)} bytes, SHA-1: {sha1}', 'blue'))
+    print(colored(f'多进程模式{len(data)} bytes, SHA-1: {sha1},useRGB:{useRGB}', 'blue'))
     
     root = Tk()
     screen_h= root.winfo_screenheight()
@@ -142,8 +212,13 @@ def send(data: bytes, *, block_size: int = 2350):
     q_img = multiprocessing.Queue(30)
     t1 = multiprocessing.Process(target=set_block,args=[stream,block_size,q_block])
     t1.start()
+
     #设为5差不多为15FPS
-    for x in range(3):
+    if useRGB:
+        ps=6
+    else:
+        ps=3
+    for x in range(ps):
         t2 = multiprocessing.Process(target=set_img,args=[x,q_block,q_img])
         t2.start()
     
@@ -166,6 +241,25 @@ def send(data: bytes, *, block_size: int = 2350):
                 cv2.imshow('sender2', img2)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
+
+                if useRGB and isDebug:
+                    (b, g, r) = cv2.split(img2)
+                    inv_b=cv2.bitwise_not(b)
+                    inv_g=cv2.bitwise_not(g)
+                    inv_r=cv2.bitwise_not(r)
+
+                    cv2.imshow('sender1', inv_b)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                    time.sleep(0.3)
+                    cv2.imshow('sender1', inv_g)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                    time.sleep(0.3)
+                    cv2.imshow('sender1', inv_r)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                    time.sleep(0.3)
         #限成5FPS 
         #不要太快 会糊
         time.sleep(0.2)	
@@ -192,13 +286,44 @@ def read_cap(path,q_img):
     h=cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     print("w:{:f},h:{:f}".format(w,h))
 
+    cv2.namedWindow('receive', cv2.WINDOW_NORMAL)
+
     while True:
         ret, img = cap.read()
         if not ret:
            break
-        q_img.put(img,True)
+        #用RGB分通道 且反色
+        if useRGB:
+            (b, g, r) = cv2.split(img)
+            inv_b=cv2.bitwise_not(b)
+            q_img.put(inv_b,True)
+            inv_g=cv2.bitwise_not(g)
+            q_img.put(inv_g,True)
+            inv_r=cv2.bitwise_not(r)
+            q_img.put(inv_r,True)
+
+            if isDebug:
+                cv2.imshow('receive', img)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                time.sleep(0.3)
+                cv2.imshow('receive', inv_b)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                time.sleep(0.3)
+                cv2.imshow('receive', inv_g)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                time.sleep(0.3)
+                cv2.imshow('receive', inv_r)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                time.sleep(0.3)
+        else:
+            q_img.put(img,True)
         #time.sleep(0.03)  #33fps for realtime 
         time.sleep(0.001)
+
         if isEnd:
             break
 
@@ -224,11 +349,13 @@ def decoded_img(lock,decode_i,index,q_img,q_decode):
 
             img=q_img.get()
             decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
-            
-            #灰色    
-            if not decoded_qrs:
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
+
+            #如果不是RGB分色
+            if not useRGB:
+                #转灰色    
+                if not decoded_qrs:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                    decoded_qrs = pyzbar.decode(img, symbols=(pyzbar.ZBarSymbol.QRCODE,))
                 
             #锐化
             if False:
@@ -310,6 +437,7 @@ def read_decode(index,q_decode,q_block):
      
 #接收视频
 def receive(path):
+    print(colored(f'多进程模式 useRGB:{useRGB}', 'blue'))
     global isEnd       
     ltDecoder = decode.LtDecoder()
     empty = True
@@ -320,6 +448,7 @@ def receive(path):
     q_img = multiprocessing.Queue(50)
     q_decode = multiprocessing.Queue(50)
     q_block = multiprocessing.Queue(50)
+   
     #多进程
     t1 = multiprocessing.Process(target=read_cap,args=[path,q_img])
     t1.start()
