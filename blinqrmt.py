@@ -356,6 +356,8 @@ def receive(path):
                     #写文件
                     with open(path+".out", 'wb') as fw:
                         data = fw.write(data)
+                    #仅支持单文件的在此结束和退出    
+                    isEnd=True
                     break
                     #下一个    
                     ltDecoder = decode.LtDecoder()
