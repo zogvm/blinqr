@@ -14,7 +14,7 @@ from lt import encode, decode
 from base64 import b85encode, b85decode
 from tkinter.filedialog import askopenfilename
 
-import multiprocessing
+import multiprocessing 
 
 isDebug=False
 
@@ -28,7 +28,7 @@ def fix_scaling():
         except (ImportError, AttributeError, OSError):
             pass
 
-
+#弹出选文件
 def select_file():
     root = Tk()
     root.withdraw()
@@ -36,15 +36,16 @@ def select_file():
     root.destroy()
     return path
 
-
+#计算SHA
 def calculate_sha1(data: bytes) -> str:
     m = sha1()
     m.update(data)
     return m.hexdigest()
 
 #========================send==========start========================
-
+#是否结束
 isEnd=False
+#将BYTE转块
 def set_block(stream,block_size,q_block):
     global isEnd   
     i=0     
@@ -62,7 +63,7 @@ def set_block(stream,block_size,q_block):
             start_time = time.time()
         
     isEnd=True
-
+#块转二维码
 def set_img(index,q_block,q_img):
     global isEnd   
     while True:
@@ -72,7 +73,8 @@ def set_img(index,q_block,q_img):
             #make_qr最耗 差不多0.2S
             block=q_block.get()
             block_encoded = b85encode(block)
-            #2350 l  max size is 2350
+            #b85encode       
+            #2350 l  
             #1024 m
             #512  h
             qr = make_qr(block_encoded, error='l') #177*177
@@ -89,7 +91,7 @@ def set_img(index,q_block,q_img):
             time.sleep(0.001)	
             if isEnd:
                 break
-        
+#发送端
 def send(data: bytes, *, block_size: int = 2350):
     assert block_size <= 2350
 
@@ -174,6 +176,7 @@ def send(data: bytes, *, block_size: int = 2350):
  #====================send=========end=================   
 
  #====================receive======start================    
+ #视频流转图片
 def read_cap(path,q_img):
     global isEnd 
     i=0
@@ -206,7 +209,8 @@ def read_cap(path,q_img):
     cap.release()       
     isEnd=True
 
-def decoded_img(index,q_img,q_decode):
+#识别图片是否为二维码
+def decoded_img(lock,decode_i,index,q_img,q_decode):
     global isEnd 
     while True:
         if isEnd:
@@ -214,7 +218,8 @@ def decoded_img(index,q_img,q_decode):
         time.sleep(0.001)	
         if q_img.qsize()>0:	
 
-            if isDebug:
+            #if isDebug:
+            if True:
                 start_time = time.time()
 
             img=q_img.get()
@@ -272,13 +277,17 @@ def decoded_img(index,q_img,q_decode):
                 for decoded_qr in decoded_qrs:
                     q_decode.put(decoded_qr,True)
                     
-            if isDebug:
-                print("index={:d},decode time:{:.2f}".format(index,time.time()-start_time))
+            #if isDebug:
+            if True:
+                with lock:
+                    decode_i.value  +=1
+                if decoded_qrs:
+                    print("有识别到 index={:d},decode time:{:.2f},i:{:d}".format(index,time.time()-start_time,decode_i.value))
+                else:
+                    print("未识别到 index={:d},decode time:{:.2f},i:{:d}".format(index,time.time()-start_time,decode_i.value))
 
-      
             
-
-           
+#将识别后的二维码转换成BYTE
 def read_decode(index,q_decode,q_block):
     global isEnd 
     while True:
@@ -299,20 +308,24 @@ def read_decode(index,q_decode,q_block):
                 print("index={:d},block time:{:.2f}".format(index,time.time()-start_time))
 
      
-
+#接收视频
 def receive(path):
     global isEnd       
     ltDecoder = decode.LtDecoder()
     empty = True
 
-    q_img = multiprocessing.Queue(30)
-    q_decode = multiprocessing.Queue(30)
-    q_block = multiprocessing.Queue(30)
+    lock=multiprocessing.Lock() #进程锁
+    decode_i = multiprocessing.Value('i', 0)#进程共享变量
+    #进程队列
+    q_img = multiprocessing.Queue(50)
+    q_decode = multiprocessing.Queue(50)
+    q_block = multiprocessing.Queue(50)
+    #多进程
     t1 = multiprocessing.Process(target=read_cap,args=[path,q_img])
     t1.start()
-    #
-    for x in range(5):
-        t2 = multiprocessing.Process(target=decoded_img,args=[x,q_img,q_decode])
+ 
+    for x in range(16):
+        t2 = multiprocessing.Process(target=decoded_img,args=[lock,decode_i,x,q_img,q_decode])
         t2.start()
 
     for x in range(1):
@@ -327,29 +340,31 @@ def receive(path):
                 break
             if q_block.qsize()>0:	
                 block=q_block.get()
+                #加入LT解码块
                 ltDecoder.consume_block(block)
                 empty = False
-
+                #解码完成
                 if ltDecoder.is_done():
+                    #解析
                     data = ltDecoder.bytes_dump()
                     sha1 = calculate_sha1(data)
-
+                    #打印
                     time_elapsed = time.time() - start_time
                     transfer_speed = len(data) / time_elapsed
                     print(colored(f'done:{len(data)} bytes, SHA-1: {sha1}', 'green'))
                     print(colored(f'done:{time_elapsed:.2f} seconds, {transfer_speed:.2f} B/s', 'green'))
-                 
+                    #写文件
                     with open(path+".out", 'wb') as fw:
                         data = fw.write(data)
                     break
-
+                    #下一个    
                     ltDecoder = decode.LtDecoder()
                     empty = True
             else:
                 time.sleep(0.001)
     finally:
         cv2.destroyAllWindows()
- 
+    #更新结束标记
     isEnd=True
 
  #====================receive======end================    
