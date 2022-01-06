@@ -91,17 +91,39 @@ def send(data: bytes, *, block_size: int = 2350):
     root = Tk()
     screen_h= root.winfo_screenheight()
     screen_w= root.winfo_screenwidth()
-    print("w:{:f},h:{:f}".format(screen_w,screen_h))
-    
+    #计算是否显示2个二维码
     if screen_h> screen_w:
-        win_s=screen_w	
+        if screen_h/screen_w >16.0/10.1:
+            win_s=screen_w-80
+            is_two=True
+            if win_s>screen_h/2:
+                win_s=screen_h/2
+        else:
+            win_s=screen_w-80
+            is_two=False
     else:
-        win_s=screen_h	
-    win_s=win_s-80
-     
-    cv2.namedWindow('sender', cv2.WINDOW_NORMAL)
-    cv2.resizeWindow('sender',win_s,win_s)
-    
+        if screen_w/screen_h >16.0/10.1:
+            win_s=screen_h-80
+            is_two=True
+            if win_s>screen_w/2:
+                win_s=screen_w/2
+        else:
+            win_s=screen_h-80
+            is_two=False
+
+    win_s=win_s-10
+
+    print("w:{:f},h:{:f},win:{:f},two:{:d}".format(screen_w,screen_h,win_s,is_two))
+
+    cv2.namedWindow('sender1', cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('sender1',int(win_s),int(win_s))
+    cv2.moveWindow('sender1',0,0)
+
+    if is_two:
+        cv2.namedWindow('sender2', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('sender2',int(win_s),int(win_s)) 
+        cv2.moveWindow('sender2',int(win_s)+10,0)
+
     start_time = time.time()
     i=0     
     q_block = multiprocessing.Queue(30)
@@ -109,7 +131,6 @@ def send(data: bytes, *, block_size: int = 2350):
     t1 = multiprocessing.Process(target=set_block,args=[stream,block_size,q_block])
     t1.start()
     #设为5差不多为15FPS
-    #不要太快 会糊
     for x in range(3):
         t2 = multiprocessing.Process(target=set_img,args=[x,q_block,q_img])
         t2.start()
@@ -119,11 +140,20 @@ def send(data: bytes, *, block_size: int = 2350):
             i+=1
             print("time:{:.2f},{:d}".format(time.time()-start_time,i))
             img=q_img.get()
-            cv2.imshow('sender', img)
+            cv2.imshow('sender1', img)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                break
-        #限成10FPS
-        time.sleep(0.1)	
+        if is_two:
+            if q_img.qsize()>0:	
+                i+=1
+                print("time:{:.2f},{:d}".format(time.time()-start_time,i))
+                img2=q_img.get()
+                cv2.imshow('sender2', img2)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+        #限成5FPS 
+        #不要太快 会糊
+        time.sleep(0.2)	
            
     cv2.destroyAllWindows()   
     
