@@ -8,9 +8,12 @@ https://segno.readthedocs.io/en/stable/index.html
 
 # 优化经验
 ## 发送端 
-5帧最稳定，不要再高了
+### 5帧最稳定，不要再高了。再高了摄像模糊无法识别
+### RGB 3层叠加二维码，效果不好，很模糊，无法识别。可能可以采用2色：红 绿，白 黑
+### 1920*1080的 二个二维码同时显示 每个二维码 900*900分辨率 比较好，三个二维码600*600的识别率不是很高。不如只用2个的。
+
 ## 接收端
-彩色，灰色 ，二值化即可，其他的没用又影响速度
+### 彩色识别下 然后灰色识别下 ，然后二值化识别即可，其他的没用又影响速度
 
 # blinqr
 A prototype implementation of an unidirectional connectionless stateless data transfer protocol using QR and LT codes to send small files from a computer to a mobile device.
