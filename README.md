@@ -6,10 +6,10 @@ https://tuz.im/blog/233.html
 
 https://segno.readthedocs.io/en/stable/index.html
 
-#优化经验
-##发送端 
+# 优化经验
+## 发送端 
 5帧最稳定，不要再高了
-##接收端
+## 接收端
 彩色，灰色 ，二值化即可，其他的没用又影响速度
 
 # blinqr
