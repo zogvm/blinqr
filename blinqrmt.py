@@ -17,8 +17,12 @@ import queue
 import multiprocessing 
 import math
 
-useRGB=True
+#用RGB 3色 效果不好 太模糊了
+useRGB=False 
+#debug调试
 isDebug=False
+#3个二维码同时显示 效果不好 大部分只能识别到2张，还不如2个同屏
+isThree=False
 
 def fix_scaling():
     import sys
@@ -77,7 +81,7 @@ def block2img(block):
     qr = make_qr(block_encoded, error='l') #177*177
     img = ~np.array(qr.matrix, dtype=np.bool)
     img = np.uint8(img) * 0xFF
-    img = np.pad(img, pad_width=20,mode='constant', constant_values=0xFF)
+    img = np.pad(img, pad_width=10,mode='constant', constant_values=0xFF)
     return img
 
 #块转二维码 不反色 黑底白值
@@ -91,7 +95,7 @@ def block2img_rgb(block):
     qr = make_qr(block_encoded, error='l') #177*177
     img = np.array(qr.matrix, dtype=np.bool)
     img = np.uint8(img) * 0xFF
-    img = np.pad(img, pad_width=20,mode='constant', constant_values=0x00)
+    img = np.pad(img, pad_width=10,mode='constant', constant_values=0x00)
     return img
     
 #块转二维码
@@ -175,7 +179,7 @@ def send(data: bytes, *, block_size: int = 2350):
     screen_w= root.winfo_screenwidth()
     #计算是否显示2个二维码
     if screen_h> screen_w:
-        if screen_h/screen_w >16.0/10.1:
+        if screen_h/screen_w >16.0/10.1: #16:9
             win_s=screen_w-80
             is_two=True
             if win_s>screen_h/2:
@@ -183,8 +187,10 @@ def send(data: bytes, *, block_size: int = 2350):
         else:
             win_s=screen_w-80
             is_two=False
+        if isThree:
+             win_s=screen_h/3
     else:
-        if screen_w/screen_h >16.0/10.1:
+        if screen_w/screen_h >16.0/10.1:#16:9
             win_s=screen_h-80
             is_two=True
             if win_s>screen_w/2:
@@ -192,6 +198,8 @@ def send(data: bytes, *, block_size: int = 2350):
         else:
             win_s=screen_h-80
             is_two=False
+        if isThree:
+             win_s=screen_w/3
 
     win_s=win_s-10
 
@@ -205,6 +213,10 @@ def send(data: bytes, *, block_size: int = 2350):
         cv2.namedWindow('sender2', cv2.WINDOW_NORMAL)
         cv2.resizeWindow('sender2',int(win_s),int(win_s)) 
         cv2.moveWindow('sender2',int(win_s)+10,0)
+    if isThree:
+        cv2.namedWindow('sender3', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('sender3',int(win_s),int(win_s)) 
+        cv2.moveWindow('sender3',(int(win_s)+10)*2,0)
 
     start_time = time.time()
     i=0     
@@ -239,6 +251,14 @@ def send(data: bytes, *, block_size: int = 2350):
                 print("time:{:.2f},{:d}".format(time.time()-start_time,i))
                 img2=q_img.get()
                 cv2.imshow('sender2', img2)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+        if isThree:
+            if q_img.qsize()>0:	
+                i+=1
+                print("time:{:.2f},{:d}".format(time.time()-start_time,i))
+                img3=q_img.get()
+                cv2.imshow('sender3', img3)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
 
@@ -285,8 +305,6 @@ def read_cap(path,q_img):
     w=cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     h=cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     print("w:{:f},h:{:f}".format(w,h))
-
-    cv2.namedWindow('receive', cv2.WINDOW_NORMAL)
 
     while True:
         ret, img = cap.read()
@@ -409,7 +427,7 @@ def decoded_img(lock,decode_i,index,q_img,q_decode):
                 with lock:
                     decode_i.value  +=1
                 if decoded_qrs:
-                    print("有识别到 index={:d},decode time:{:.2f},i:{:d}".format(index,time.time()-start_time,decode_i.value))
+                    print("有识别到{:d}张 index={:d},decode time:{:.2f},i:{:d}".format(len(decoded_qrs),index,time.time()-start_time,decode_i.value))
                 else:
                     print("未识别到 index={:d},decode time:{:.2f},i:{:d}".format(index,time.time()-start_time,decode_i.value))
 
@@ -440,7 +458,7 @@ def receive(path):
     print(colored(f'多进程模式 useRGB:{useRGB}', 'blue'))
     global isEnd       
     ltDecoder = decode.LtDecoder()
-    empty = True
+    consume_num = 0
 
     lock=multiprocessing.Lock() #进程锁
     decode_i = multiprocessing.Value('i', 0)#进程共享变量
@@ -471,7 +489,7 @@ def receive(path):
                 block=q_block.get()
                 #加入LT解码块
                 ltDecoder.consume_block(block)
-                empty = False
+                consume_num +=1
                 #解码完成
                 if ltDecoder.is_done():
                     #解析
@@ -481,7 +499,7 @@ def receive(path):
                     time_elapsed = time.time() - start_time
                     transfer_speed = len(data) / time_elapsed
                     print(colored(f'done:{len(data)} bytes, SHA-1: {sha1}', 'green'))
-                    print(colored(f'done:{time_elapsed:.2f} seconds, {transfer_speed:.2f} B/s', 'green'))
+                    print(colored(f'done:{time_elapsed:.2f} seconds, {transfer_speed:.2f} B/s,consume_num:{consume_num:d}', 'green'))
                     #写文件
                     with open(path+".out", 'wb') as fw:
                         data = fw.write(data)
@@ -490,7 +508,7 @@ def receive(path):
                     break
                     #下一个    
                     ltDecoder = decode.LtDecoder()
-                    empty = True
+                    consume_num = 0
             else:
                 time.sleep(0.001)
     finally:
