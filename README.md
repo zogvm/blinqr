@@ -34,7 +34,7 @@ https://segno.readthedocs.io/en/stable/index.html
 
 ### 测试
 #### 6.3M的文件：录制 30FPS 1080P 4.5分钟， 接收端处理6122帧，27KB/S 处理234S 识别10533张二维码
-
+#### 6.8M的文件：录制 30FPS 1080P 6分钟， 接收端处理9402帧，7KB/S 处理920S 识别7836张二维码
 
 # blinqr
 A prototype implementation of an unidirectional connectionless stateless data transfer protocol using QR and LT codes to send small files from a computer to a mobile device.
