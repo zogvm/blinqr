@@ -7,7 +7,9 @@ https://tuz.im/blog/233.html
 https://segno.readthedocs.io/en/stable/index.html
 
 # 优化经验
+
 ## 小米6X 后置2KW像素 拍1080 30FPS 
+![](docs/mi6x.jpg)
 ### 发送端 （ 1M文件 需录2分钟）
 #### 5帧最稳定，不要再高了。再高了摄像模糊无法识别
 #### RGB 3层叠加二维码，效果不好，很模糊，无法识别。可能可以采用2色：红 绿，白 黑
@@ -20,7 +22,8 @@ https://segno.readthedocs.io/en/stable/index.html
 #### 1.7M的文件：录制 30FPS 1080P 3分钟， 接收端处理3065帧，21KB/S 处理80S 识别5283张二维码
 #### 3.4M的文件：录制 30FPS 1080P 4.5分钟， 接收端处理6200帧，20KB/S 处理173S 识别10056张二维码
 
-## 小米11 lite 后置6KW像素 拍1080 30FPS 
+## 小米11 lite 后置6KW像素 拍1080 30FPS
+![](docs/mi11lite.jpg)
 ### 发送端  （ 1M文件 需录1分钟）
 #### 10帧
 #### RGB 3层叠加二维码，效果不好，很模糊，无法识别。可能可以采用2色：红 绿，白 黑
