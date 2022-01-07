@@ -20,6 +20,19 @@ https://segno.readthedocs.io/en/stable/index.html
 #### 1.7M的文件：录制 30FPS 1080P 3分钟， 接收端处理3065帧，21KB/S 处理80S 识别5283张二维码
 #### 3.4M的文件：录制 30FPS 1080P 4.5分钟， 接收端处理6200帧，20KB/S 处理173S 识别10056张二维码
 
+## 小米11 lite 后置6KW像素 拍1080 30FPS 
+### 发送端 
+#### 10帧
+#### RGB 3层叠加二维码，效果不好，很模糊，无法识别。可能可以采用2色：红 绿，白 黑
+#### 1920 X 1080的 三个二维码600 X 600的识别率 识别率还可以，但是CPU太卡，上不到10帧。所以用 二个二维码 显示比较好。
+
+### 接收端
+#### 彩色识别下 然后灰色识别下 ，然后二值化识别即可，其他的没用又影响速度
+
+### 测试
+#### 6.3M的文件：录制 30FPS 1080P 4.5分钟， 接收端处理6122帧，27KB/S 处理234S 识别10533张二维码
+
+
 # blinqr
 A prototype implementation of an unidirectional connectionless stateless data transfer protocol using QR and LT codes to send small files from a computer to a mobile device.
 
