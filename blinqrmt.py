@@ -23,6 +23,8 @@ useRGB=False
 isDebug=False
 #3个二维码同时显示 效果不好 大部分只能识别到2张，还不如2个同屏
 isThree=False
+#用6KW像素的摄像头 可以10FPS
+CAMERA6KW=True
 
 def fix_scaling():
     import sys
@@ -81,7 +83,7 @@ def block2img(block):
     qr = make_qr(block_encoded, error='l') #177*177
     img = ~np.array(qr.matrix, dtype=np.bool)
     img = np.uint8(img) * 0xFF
-    img = np.pad(img, pad_width=10,mode='constant', constant_values=0xFF)
+    img = np.pad(img, pad_width=9,mode='constant', constant_values=0xFF)
     return img
 
 #块转二维码 不反色 黑底白值
@@ -95,7 +97,7 @@ def block2img_rgb(block):
     qr = make_qr(block_encoded, error='l') #177*177
     img = np.array(qr.matrix, dtype=np.bool)
     img = np.uint8(img) * 0xFF
-    img = np.pad(img, pad_width=10,mode='constant', constant_values=0x00)
+    img = np.pad(img, pad_width=9,mode='constant', constant_values=0x00)
     return img
     
 #块转二维码
@@ -220,16 +222,16 @@ def send(data: bytes, *, block_size: int = 2350):
 
     start_time = time.time()
     i=0     
-    q_block = multiprocessing.Queue(30)
-    q_img = multiprocessing.Queue(30)
+    q_block = multiprocessing.Queue(50)
+    q_img = multiprocessing.Queue(50)
     t1 = multiprocessing.Process(target=set_block,args=[stream,block_size,q_block])
     t1.start()
 
     #设为5差不多为15FPS
-    if useRGB:
-        ps=6
+    if useRGB or CAMERA6KW:
+        ps=8
     else:
-        ps=3
+        ps=4
     for x in range(ps):
         t2 = multiprocessing.Process(target=set_img,args=[x,q_block,q_img])
         t2.start()
@@ -280,9 +282,14 @@ def send(data: bytes, *, block_size: int = 2350):
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
                     time.sleep(0.3)
-        #限成5FPS 
+
         #不要太快 会糊
-        time.sleep(0.2)	
+        #可以双屏10FPS 受限CPU 帧率快不了
+        if CAMERA6KW:
+             time.sleep(0.1)
+        #限成5FPS 	
+        else:
+            time.sleep(0.2)	
            
     cv2.destroyAllWindows()  
     isEnd=True
