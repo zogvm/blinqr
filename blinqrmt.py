@@ -346,6 +346,13 @@ def read_cap(path,q_img):
                 time.sleep(0.3)
         else:
             q_img.put(img,True)
+        ## 双屏图片时 进行裁剪 变成单个二维码向下传 （避免后续只识别到一张就退出了）
+        #crop=img[starty:endy,startx:endx]
+        # crop1=img[0:0+h,0:0+w/2+100]s
+        # crop2=img[0:0+h,w/2-100:w]
+        # q_img.put(crop1,True)
+        # q_img.put(crop2,True)
+
         #time.sleep(0.03)  #33fps for realtime 
         time.sleep(0.001)
 
@@ -434,9 +441,9 @@ def decoded_img(lock,decode_i,index,q_img,q_decode):
                 with lock:
                     decode_i.value  +=1
                 if decoded_qrs:
-                    print("有识别到{:d}张 index={:d},decode time:{:.2f},i:{:d}".format(len(decoded_qrs),index,time.time()-start_time,decode_i.value))
+                    print("+++++++++有识别到{:d}张 index={:d},decode time:{:.2f},i:{:d}".format(len(decoded_qrs),index,time.time()-start_time,decode_i.value))
                 else:
-                    print("未识别到 index={:d},decode time:{:.2f},i:{:d}".format(index,time.time()-start_time,decode_i.value))
+                    print("---------未识别到     index={:d},decode time:{:.2f},i:{:d}".format(index,time.time()-start_time,decode_i.value))
 
             
 #将识别后的二维码转换成BYTE
@@ -478,7 +485,7 @@ def receive(path):
     t1 = multiprocessing.Process(target=read_cap,args=[path,q_img])
     t1.start()
  
-    for x in range(16):
+    for x in range(12):
         t2 = multiprocessing.Process(target=decoded_img,args=[lock,decode_i,x,q_img,q_decode])
         t2.start()
 
