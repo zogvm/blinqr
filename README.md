@@ -16,8 +16,8 @@ https://segno.readthedocs.io/en/stable/index.html
 ### 彩色识别下 然后灰色识别下 ，然后二值化识别即可，其他的没用又影响速度
 
 ## 测试
-### 1.7M的文件： 录制 30FPS 1080P 3分钟， 接收端处理3065帧，21KB/S 处理80S 识别5283张二维码
-###      
+### 1.7M的文件：录制 30FPS 1080P 3分钟， 接收端处理3065帧，21KB/S 处理80S 识别5283张二维码
+### 3.4M的文件：录制 30FPS 1080P 4.5分钟， 接收端处理6200帧，20KB/S 处理173S 识别10056张二维码
 
 # blinqr
 A prototype implementation of an unidirectional connectionless stateless data transfer protocol using QR and LT codes to send small files from a computer to a mobile device.
