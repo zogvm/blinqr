@@ -10,6 +10,7 @@ https://segno.readthedocs.io/en/stable/index.html
 # 更好的QRCODE识别
 ##### https://www.cnblogs.com/shuimuqingyang/p/14356271.html
 ##### https://github.com/Kazuhito00/OpenCV-QRCodeDetector-Sample
+##### https://blog.csdn.net/m0_47472749/article/details/109143669
 ##### 需要opencv-python 4.5.3.56 or later
 
 ## 小米6X 后置2KW像素 拍1080 30FPS 
